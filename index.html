@@ -551,32 +551,365 @@ footer{padding:2.5rem;border-top:1px solid rgba(255,255,255,.06);display:flex;al
 .lang-btn:hover{background:rgba(255,255,255,.15);transform:scale(1.06)}
 .lang-btn:active{transform:scale(.97)}
 
+
+/* ════════════════════════════════════════════════════════════════════════
+   ADMIN SYSTEM
+   .admin-only  — hidden from public, shown only when admin is logged in.
+   .public-only — shown to public, hidden when admin is logged in.
+   Controlled by JS toggling class .admin-mode on <body>
+<!-- ════════════════════════════════════════════════════════════════════
+     ADMIN BAR — visible only when logged in (body.admin-mode)
+     Shows a pink pulse indicator and a logout button.
+════════════════════════════════════════════════════════════════════ -->
+<div class="admin-bar">
+  <div class="admin-bar-label">
+    <span class="admin-bar-dot"></span>
+    Admin Mode activo
+  </div>
+  <div class="admin-bar-right">
+    <span class="admin-bar-hint">Solo tú puedes ver los controles de edición</span>
+    <button class="admin-logout" onclick="adminLogout()">Cerrar sesión</button>
+  </div>
+</div>
+
+.
+════════════════════════════════════════════════════════════════════════ */
+
+/* Hidden from public by default */
+.admin-only { display: none !important; }
+
+/* When body has .admin-mode, admin controls become visible */
+body.admin-mode .admin-only { display: flex !important; }
+body.admin-mode .admin-only.block { display: block !important; }
+body.admin-mode .admin-only.grid  { display: grid  !important; }
+
+/* Photo cards — in public mode clicks do nothing (no upload) */
+.pi { cursor: default; }
+body.admin-mode .pi { cursor: pointer; }
+
+/*
+  Admin bar — fixed top strip shown when logged in.
+  Sits above the nav (z-index > nav's 200).
+*/
+.admin-bar {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 400;
+  height: 36px;
+  background: linear-gradient(90deg, rgba(255,45,120,.18), rgba(136,34,221,.18));
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,45,120,.3);
+  align-items: center; justify-content: space-between;
+  padding: 0 2rem; gap: 1rem;
+}
+body.admin-mode .admin-bar { display: flex; }
+
+/* When admin bar is visible, push everything down by its height */
+body.admin-mode nav           { top: 36px; }
+body.admin-mode .pclose       { top: calc(5.5rem + 36px); }
+body.admin-mode .btt          { bottom: 2rem; }
+
+.admin-bar-label {
+  font-family: var(--sf); font-size: .72rem; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--pink); display: flex; align-items: center; gap: .5rem;
+}
+.admin-bar-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--pink);
+  box-shadow: 0 0 8px var(--pink);
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+
+.admin-bar-right { display: flex; align-items: center; gap: 1rem; }
+.admin-bar-hint {
+  font-family: var(--sf); font-size: .68rem; color: rgba(245,245,240,.4);
+}
+.admin-logout {
+  font-family: var(--sf); font-size: .72rem; font-weight: 600;
+  letter-spacing: .05em; color: rgba(245,245,240,.7);
+  padding: .28rem .85rem;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 100px;
+  transition: background .2s, color .2s;
+}
+.admin-logout:hover { background: rgba(255,80,80,.2); color: #ff8080; }
+
+/*
+  Admin login modal — same Liquid Glass style as contact modal.
+  Triggered by clicking the hidden [·] button in the footer.
+*/
+.admin-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  opacity: 0; pointer-events: none; transition: opacity .3s;
+}
+.admin-overlay.open { opacity: 1; pointer-events: all; }
+
+.admin-card {
+  width: 100%; max-width: 380px;
+  background: rgba(255,255,255,.08);
+  backdrop-filter: saturate(200%) blur(36px); -webkit-backdrop-filter: saturate(200%) blur(36px);
+  border: 1px solid rgba(255,255,255,.15); border-top-color: rgba(255,255,255,.35);
+  border-radius: 26px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.24);
+  padding: 2.2rem 2rem;
+  position: relative; overflow: hidden;
+  transform: translateY(16px) scale(.97);
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+.admin-overlay.open .admin-card { transform: translateY(0) scale(1); }
+.admin-card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 70%; height: 45%;
+  background: radial-gradient(ellipse at top left, rgba(255,45,120,.14) 0%, transparent 65%);
+  pointer-events: none; border-radius: 26px 0 0 0;
+}
+.admin-card-icon {
+  font-size: 2rem; text-align: center; margin-bottom: 1.2rem;
+  position: relative; z-index: 2;
+}
+.admin-card-title {
+  font-family: var(--fd); font-size: 2rem; letter-spacing: .04em;
+  text-transform: uppercase; line-height: 1; text-align: center;
+  margin-bottom: .4rem; position: relative; z-index: 2;
+}
+.admin-card-sub {
+  font-family: var(--sf); font-size: .8rem; font-weight: 300;
+  color: var(--gm); text-align: center; margin-bottom: 1.8rem;
+  position: relative; z-index: 2;
+}
+.admin-pwd-wrap {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1); border-top-color: rgba(255,255,255,.22);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+  overflow: hidden; margin-bottom: 1rem; position: relative; z-index: 2;
+  transition: border-color .25s;
+}
+.admin-pwd-wrap:focus-within {
+  border-color: rgba(255,45,120,.4); border-top-color: rgba(255,45,120,.7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 3px rgba(255,45,120,.08);
+}
+.admin-pwd-label {
+  font-family: var(--sf); font-size: .66rem; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase; color: rgba(245,245,240,.38);
+  padding: .7rem 1rem 0; display: block;
+}
+.admin-pwd-input {
+  width: 100%; background: transparent; border: none; outline: none;
+  padding: .2rem 1rem .75rem;
+  font-family: var(--sf); font-size: 1.1rem; color: var(--wh);
+  letter-spacing: .15em;
+}
+.admin-pwd-input::placeholder { color: rgba(245,245,240,.2); letter-spacing: .05em; }
+.admin-login-btn {
+  width: 100%; padding: .85rem;
+  font-family: var(--sf); font-size: .88rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--wh);
+  background: linear-gradient(135deg, rgba(255,45,120,.35), rgba(136,34,221,.25));
+  border: 1px solid rgba(255,45,120,.35); border-top-color: rgba(255,45,120,.6);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(255,45,120,.2), inset 0 1px 0 rgba(255,255,255,.16);
+  position: relative; overflow: hidden;
+  transition: background .25s, transform .2s, box-shadow .25s;
+}
+.admin-login-btn::before {
+  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 55%);
+  pointer-events: none;
+}
+.admin-login-btn:hover {
+  background: linear-gradient(135deg, rgba(255,45,120,.5), rgba(136,34,221,.38));
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(255,45,120,.3), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.admin-error {
+  font-family: var(--sf); font-size: .78rem;
+  color: rgba(255,100,80,.9); text-align: center;
+  margin-top: .75rem; min-height: 1.2rem;
+  position: relative; z-index: 2;
+}
+
+/* Secret trigger in footer — barely visible dot */
+.admin-trigger {
+  font-family: var(--sf); font-size: .65rem; color: rgba(245,245,240,.08);
+  background: transparent; border: none;
+  padding: .2rem .4rem; border-radius: 4px;
+  transition: color .3s; cursor: default;
+  user-select: none;
+}
+.admin-trigger:hover { color: rgba(245,245,240,.25); cursor: pointer; }
+
+
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE NAVIGATION — hamburger menu
+   Desktop (>768px): normal pill links in a row.
+   Mobile (≤768px):  logo + lang toggle + hamburger icon.
+                     Menu drops down as a Liquid Glass panel.
+════════════════════════════════════════════════════════════════════ */
+
+/* Hide desktop links on mobile */
+@media(max-width:768px){
+  .nl{ display:none !important; }
+  .mob-right{ display:flex !important; }
+}
+/* Hide mobile elements on desktop */
+.mob-right{ display:none; align-items:center; gap:.7rem; }
+.mob-menu { display:none; }
+
+/* Hamburger button — 3 bars */
+.ham{
+  width:38px; height:38px; border-radius:10px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.13); border-top-color:rgba(255,255,255,.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+  transition:background .2s;
+  position:relative; overflow:hidden;
+}
+.ham::before{content:'';position:absolute;inset:0;border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 55%);pointer-events:none}
+.ham:hover{ background:rgba(255,255,255,.14); }
+.ham span{
+  display:block; width:18px; height:1.5px;
+  background:rgba(245,245,240,.8); border-radius:2px;
+  transition:transform .3s ease, opacity .3s ease;
+  transform-origin:center;
+}
+/* Animate to X when open */
+.ham.open span:nth-child(1){ transform:translateY(6.5px) rotate(45deg); }
+.ham.open span:nth-child(2){ opacity:0; transform:scaleX(0); }
+.ham.open span:nth-child(3){ transform:translateY(-6.5px) rotate(-45deg); }
+
+/* Mobile lang button — same as desktop but compact */
+.lang-btn-mob{
+  font-family:var(--sf); font-size:.78rem; font-weight:600; letter-spacing:.06em;
+  color:rgba(245,245,240,.85);
+  padding:.36rem .85rem;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.13); border-top-color:rgba(255,255,255,.26);
+  border-radius:100px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+  position:relative; overflow:hidden;
+  transition:background .2s; cursor:pointer;
+}
+.lang-btn-mob::before{content:'';position:absolute;inset:0;border-radius:100px;background:linear-gradient(135deg,rgba(255,255,255,.12) 0%,transparent 55%);pointer-events:none}
+.lang-btn-mob:hover{ background:rgba(255,255,255,.14); }
+
+/* Mobile dropdown menu */
+.mob-menu{
+  position:fixed; top:0; left:0; right:0; z-index:190;
+  padding-top:80px; /* clear the nav bar */
+  pointer-events:none;
+  /* Slides down from top */
+  transform:translateY(-8px);
+  opacity:0;
+  transition:opacity .28s ease, transform .28s cubic-bezier(.2,1,.4,1);
+}
+.mob-menu.open{
+  display:block; pointer-events:all;
+  opacity:1; transform:translateY(0);
+}
+
+/* Glass card that holds the links */
+.mob-glass{
+  margin:0 1rem;
+  background:rgba(14,14,22,.92);
+  backdrop-filter:saturate(180%) blur(32px); -webkit-backdrop-filter:saturate(180%) blur(32px);
+  border:1px solid rgba(255,255,255,.12); border-top-color:rgba(255,255,255,.24);
+  border-radius:20px;
+  box-shadow:0 16px 48px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.18);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+  position:relative;
+}
+.mob-glass::before{
+  content:''; position:absolute; top:0; left:0; width:60%; height:40%;
+  background:radial-gradient(ellipse at top left,rgba(255,255,255,.08) 0%,transparent 65%);
+  pointer-events:none; border-radius:20px 0 0 0;
+}
+
+/* Individual mobile link */
+.mob-link{
+  font-family:var(--sf); font-size:.95rem; font-weight:500;
+  color:rgba(245,245,240,.78);
+  padding:1rem 1.5rem;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  transition:background .18s, color .18s;
+  position:relative; z-index:1;
+  text-decoration:none; display:block;
+}
+.mob-link:last-child{ border-bottom:none; }
+.mob-link:hover{ background:rgba(255,255,255,.06); color:var(--wh); }
+/* CTA link — pink accent */
+.mob-link.mob-cta{
+  color:var(--pink); font-weight:600;
+  background:rgba(255,45,120,.06);
+}
+.mob-link.mob-cta:hover{ background:rgba(255,45,120,.12); }
+
+/* On mobile, push hero down so it clears the (now taller) nav */
+@media(max-width:768px){
+  .hi{ padding-top:8rem; }
+  .panel-inner{ padding-top:7rem; }
+  .pgrid{ grid-template-columns:1fr; }
+  .sgrid{ grid-template-columns:1fr; }
+  .ggrid{ grid-template-columns:repeat(2,1fr); gap:.8rem; }
+  .vgrid{ grid-template-columns:1fr; }
+  .wrap{ padding:0 1.1rem; }
+  nav{ padding:.8rem 1.2rem; }
+  .logo{ font-size:2rem; }
+  footer{ flex-direction:column; text-align:center; gap:.8rem; }
+  .flinks{ justify-content:center; gap:1rem; }
+  .about-card{ grid-template-columns:1fr; grid-template-rows:260px auto; }
+  .vadd{ flex-direction:column; }
+  .vadd-in{ max-width:100% !important; }
+}
+
 </style>
 </head>
 <body>
 <nav>
   <div class="ng"></div>
-  <!-- [KR] — always navigates to hero / root page -->
+  <!-- [KR] logo — always returns to top -->
   <a href="#hero" class="logo" title="Inicio"><span class="br">[</span>KR<span class="br">]</span></a>
-  <ul class="nl">
+
+  <!-- Desktop nav links — hidden on mobile -->
+  <ul class="nl" id="nav-links">
     <li><a href="#" class="np" onclick="openPanel('p-about',event)" data-i18n="nav.about">[About Us]</a></li>
     <li><a href="#" class="np" onclick="openPanel('p-portfolio',event)" data-i18n="nav.portfolio">[Portafolio]</a></li>
     <li><a href="#" class="np" onclick="openPanel('p-photos',event)" data-i18n="nav.photos">[Photos]</a></li>
     <li><a href="#" class="np" onclick="openPanel('p-videos',event)" data-i18n="nav.videos">[Videos]</a></li>
     <li><a href="#" class="np" onclick="openPanel('p-blog',event)" data-i18n="nav.blog">[Blog]</a></li>
     <li><a href="#" class="np np-cta" onclick="openModal(event)" data-i18n="nav.work">Trabaja con nosotros</a></li>
-    <li>
-      <!--
-        Language toggle — switches all text between ES and EN.
-        Data attribute data-i18n="key" marks every translatable node.
-        JS reads the key, looks it up in the dictionary, and swaps the text.
-      -->
-      <button class="lang-btn" id="lang-btn" onclick="toggleLang()" title="Switch language">
-        <span id="lang-label">EN</span>
-      </button>
-    </li>
+    <li><button class="lang-btn" id="lang-btn" onclick="toggleLang()" title="Switch language"><span id="lang-label">EN</span></button></li>
   </ul>
+
+  <!-- Mobile right side: lang toggle always visible + hamburger -->
+  <div class="mob-right">
+    <button class="lang-btn lang-btn-mob" id="lang-btn-mob" onclick="toggleLang()" title="Switch language">
+      <span id="lang-label-mob">EN</span>
+    </button>
+    <!-- Hamburger button — 3 lines animate to X when open -->
+    <button class="ham" id="ham" onclick="toggleMobMenu()" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
 </nav>
+
+<!-- Mobile dropdown menu — slides down below nav -->
+<div class="mob-menu" id="mob-menu">
+  <div class="mob-glass">
+    <a href="#" class="mob-link" onclick="openPanel('p-about',event);toggleMobMenu()" data-i18n="nav.about">[About Us]</a>
+    <a href="#" class="mob-link" onclick="openPanel('p-portfolio',event);toggleMobMenu()" data-i18n="nav.portfolio">[Portafolio]</a>
+    <a href="#" class="mob-link" onclick="openPanel('p-photos',event);toggleMobMenu()" data-i18n="nav.photos">[Photos]</a>
+    <a href="#" class="mob-link" onclick="openPanel('p-videos',event);toggleMobMenu()" data-i18n="nav.videos">[Videos]</a>
+    <a href="#" class="mob-link" onclick="openPanel('p-blog',event);toggleMobMenu()" data-i18n="nav.blog">[Blog]</a>
+    <a href="#" class="mob-link mob-cta" onclick="openModal(event);toggleMobMenu()" data-i18n="nav.work">Trabaja con nosotros</a>
+  </div>
+</div>
 
 
 <!-- ══════════════════════════════════════════════════════════════
@@ -721,7 +1054,7 @@ footer{padding:2.5rem;border-top:1px solid rgba(255,255,255,.06);display:flex;al
     <h2 class="stitle" style="margin-bottom:1rem">Edición de video<br/><em>profesional</em></h2>
     <p class="sdesc" style="margin-bottom:3rem">Pega el enlace de YouTube y presiona Agregar.</p>
     <!-- URL input to add a new video -->
-    <div class="vadd">
+    <div class="vadd admin-only">
       <input class="vadd-in" id="v-url" type="url" placeholder="https://youtube.com/watch?v=..."/>
       <input class="vadd-in" id="v-title" type="text" placeholder="Título del video" style="max-width:200px"/>
       <button class="vadd-btn" onclick="addVideo()">+ Agregar</button>
@@ -743,7 +1076,7 @@ footer{padding:2.5rem;border-top:1px solid rgba(255,255,255,.06);display:flex;al
     <p class="sdesc" style="margin-bottom:3rem">Ideas, reflexiones y perspectivas sobre diseño, cultura y el mundo que construimos.</p>
 
     <!-- Post composer -->
-    <div class="composer">
+    <div class="composer admin-only block">
       <span class="clbl">Nuevo pensamiento</span>
       <input class="ctitl" id="ct" type="text" placeholder="TÍTULO DEL POST..." maxlength="80"/>
       <textarea class="cbody" id="cb" placeholder="Escribe tu pensamiento aquí..."></textarea>
@@ -846,6 +1179,10 @@ footer{padding:2.5rem;border-top:1px solid rgba(255,255,255,.06);display:flex;al
   </div>
 </section>
 
+<!--
+  FOOTER — scroll hasta aquí para encontrar el botón secreto de admin [·]
+  Está junto al texto de copyright, casi invisible a propósito.
+-->
 <footer>
   <a href="#hero" class="flogo"><span class="br">[</span>KR<span class="br">]</span></a>
   <nav class="flinks">
@@ -857,7 +1194,11 @@ footer{padding:2.5rem;border-top:1px solid rgba(255,255,255,.06);display:flex;al
     <a href="#" onclick="openModal(event)">Trabaja con nosotros</a>
     <a href="#">Privacidad</a>
   </nav>
-  <p class="fcopy">© 2026 KR Studio. Todos los derechos reservados.</p>
+  <p class="fcopy">
+    © 2026 KR Studio. Todos los derechos reservados.
+    <!-- Secret admin trigger — barely visible, no label, no tooltip -->
+    <button class="admin-trigger" onclick="openAdminModal()" tabindex="-1" aria-hidden="true">·</button>
+  </p>
 </footer>
 
 <button class="btt" id="btt" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
@@ -1331,6 +1672,161 @@ function toggleLang() {
   applyLang(window.__lang === 'es' ? 'en' : 'es');
 }
 
+
+/* ══════════════════════════════════════════════════════════════════════
+   ADMIN AUTHENTICATION SYSTEM
+   ─────────────────────────────────────────────────────────────────────
+   Flow:
+     1. User clicks the secret [·] dot in the footer
+     2. Admin login modal opens
+     3. Password is hashed in-browser with SHA-256 (Web Crypto API)
+     4. Hash is compared to the stored hash — if match, admin mode activates
+     5. body gets class .admin-mode → CSS reveals all admin controls
+     6. Session stored in sessionStorage (cleared when tab closes)
+
+   The plaintext password is NEVER stored anywhere — only its SHA-256 hash.
+   Hash: f8c9f70eb6d6a4e075cc1ef0b64a74dd89c17e9f64fc922522975cbb36c05031
+══════════════════════════════════════════════════════════════════════ */
+
+const ADMIN_HASH = 'f8c9f70eb6d6a4e075cc1ef0b64a74dd89c17e9f64fc922522975cbb36c05031';
+
+/* Hash a string with SHA-256 using the browser's Web Crypto API */
+async function sha256(str) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* Open the admin login modal */
+function openAdminModal() {
+  document.getElementById('admin-overlay').classList.add('open');
+  document.getElementById('admin-pwd').value = '';
+  document.getElementById('admin-error').textContent = '';
+  setTimeout(() => document.getElementById('admin-pwd').focus(), 120);
+}
+
+function closeAdminModal() {
+  document.getElementById('admin-overlay').classList.remove('open');
+}
+
+/* Attempt login — hash the input and compare */
+async function adminLogin() {
+  const input = document.getElementById('admin-pwd').value;
+  const hash  = await sha256(input);
+
+  if (hash === ADMIN_HASH) {
+    /* ✓ Correct — activate admin mode */
+    document.body.classList.add('admin-mode');
+    sessionStorage.setItem('kr_admin', '1');
+    closeAdminModal();
+    /* Brief visual confirmation */
+    playClick();
+  } else {
+    /* ✗ Wrong password */
+    const err = document.getElementById('admin-error');
+    err.textContent = 'Contraseña incorrecta.';
+    const pwd = document.getElementById('admin-pwd');
+    pwd.value = '';
+    pwd.style.animation = 'none';
+    /* Shake animation */
+    const wrap = pwd.closest('.admin-pwd-wrap');
+    wrap.style.borderColor = 'rgba(255,80,60,.6)';
+    wrap.style.boxShadow   = '0 0 0 3px rgba(255,60,40,.12)';
+    setTimeout(() => {
+      wrap.style.borderColor = '';
+      wrap.style.boxShadow   = '';
+      err.textContent = '';
+    }, 2200);
+    pwd.focus();
+  }
+}
+
+/* Logout — remove admin mode */
+function adminLogout() {
+  document.body.classList.remove('admin-mode');
+  sessionStorage.removeItem('kr_admin');
+}
+
+/*
+  Restore session on page reload — if sessionStorage has the flag,
+  re-apply admin mode without asking for the password again.
+*/
+if (sessionStorage.getItem('kr_admin') === '1') {
+  document.body.classList.add('admin-mode');
+}
+
+/*
+  Block photo upload in public mode — triggerUpload() checks admin status
+  before opening the file picker.
+*/
+const _origTrigger = window.triggerUpload;
+window.triggerUpload = function(piEl) {
+  if (!document.body.classList.contains('admin-mode')) return; // silently ignore
+  _origTrigger(piEl);
+};
+
+
+/* ── MOBILE MENU ────────────────────────────────────────────────────────
+   toggleMobMenu() opens/closes the dropdown.
+   Also syncs the lang label on the mobile button whenever toggleLang()
+   is called (since there are two lang buttons: desktop + mobile).      */
+function toggleMobMenu() {
+  const ham  = document.getElementById('ham');
+  const menu = document.getElementById('mob-menu');
+  const open = menu.classList.toggle('open');
+  ham.classList.toggle('open', open);
+  /* Prevent body scroll while menu is open */
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
+/* Close mobile menu when clicking outside */
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('mob-menu');
+  const ham  = document.getElementById('ham');
+  if (menu.classList.contains('open') &&
+      !menu.contains(e.target) &&
+      e.target !== ham &&
+      !ham.contains(e.target)) {
+    menu.classList.remove('open');
+    ham.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+});
+
+/* Sync both lang labels (desktop + mobile) */
+const _origToggleLang = window.toggleLang;
+window.toggleLang = function() {
+  _origToggleLang();
+  /* Keep mobile label in sync */
+  const mobLabel = document.getElementById('lang-label-mob');
+  if (mobLabel) mobLabel.textContent = window.__lang === 'es' ? 'EN' : 'ES';
+};
+
 </script>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     ADMIN LOGIN MODAL
+     Opened by the secret [·] button in the footer.
+     Password is verified against a SHA-256 hash — the real password
+     never appears in the source code.
+════════════════════════════════════════════════════════════════════ -->
+<div class="admin-overlay" id="admin-overlay" onclick="if(event.target===this)closeAdminModal()">
+  <div class="admin-card">
+    <div class="admin-card-icon">⬡</div>
+    <h2 class="admin-card-title">Admin</h2>
+    <p class="admin-card-sub">Acceso exclusivo — KR Studio</p>
+    <div class="admin-pwd-wrap">
+      <label class="admin-pwd-label" for="admin-pwd">Contraseña</label>
+      <input
+        class="admin-pwd-input" id="admin-pwd"
+        type="password" placeholder="••••••••••••"
+        onkeydown="if(event.key==='Enter')adminLogin()"
+        autocomplete="current-password"
+      />
+    </div>
+    <button class="admin-login-btn" onclick="adminLogin()">Entrar →</button>
+    <p class="admin-error" id="admin-error"></p>
+  </div>
+</div>
+
 </body>
 </html>
